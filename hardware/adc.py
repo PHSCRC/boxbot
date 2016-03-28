@@ -9,9 +9,10 @@ try:
 except SystemError:
     from component import *
 
-IC = 0 # ADS1015 (12-bit ADC)
+IC = 1 # ADS1015 (16-bit ADC)
 GAIN = 0x1000 # (+/- 4.096V for Rasberry Pi 3V3 supply)
-SINGLE_SPS = SPS = 2400
+SINGLE_SPS = 64
+SPS = 250
 WAITMS = 100
 
 MILLIVOLTS = 1000

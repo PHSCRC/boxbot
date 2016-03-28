@@ -7,10 +7,13 @@ try:
 except SystemError as err:
     from component import *
 
-class Melexis:
-    def __init__(self, addr=0x5A, fahrenheit=False):
-        self._i2c = Adafruit_I2C(addr)
+class Melexis(I2CComponent):
+    def init(self, fahrenheit=False):
+        # addr=0x5A
+        super().init()
+        self._i2c = Adafruit_I2C(self._address)
         self.mode = fahrenheit
+        self._set_init()
 
     def readAmbient(self):
         return self._readTemp(0x06)
@@ -37,7 +40,9 @@ class Melexis:
 if __name__ == "__main__":
     sensor = Melexis(fahrenheit=True)
     import time
-    while True:
-        print("Object: {}ºF ({}ºF warmer than the ambient temperature)".format(
-            round(sensor.readObject(), 3), round(sensor.getDifference(), 3)))
-        time.sleep(0.5)
+    with sensor:
+        while True:
+            print("Object: {}ºF ({}ºF warmer than ambient)".format(
+                round(sensor.readObject(), 3),
+                round(sensor.getDifference(), 3)))
+            time.sleep(0.5)
