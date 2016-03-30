@@ -3,9 +3,10 @@
 #
 
 import RPi.GPIO as gpio
-import time
+import time, os
 
 from collections import defaultdict
+from collections.abc import Iterable
 from threading import Thread
 
 from traceback import print_exc, format_exc
@@ -16,11 +17,45 @@ def delay(microseconds):
 def waitms(milliseconds):
     time.sleep(milliseconds/1000)
 
+BASE_DIR = os.environ.get("IO_BASE_DIR","/var/run/")
+
+class FIFOFile:
+    def __init__(self, fn, num=None):
+        filename = os.path.join(BASE_DIR, fn + str(num) if num > 1 else fn)
+        os.unlink(filename)
+        os.mkfifo(filename)
+        self.__fd = open(fn, "wb+", 0)
+
+    def __getattr__(self, name):
+        return getattr(self.__fd, name)
+        
 class Component:
-    def __init__(self):
+    def __init__(self, fn, numchannels=1):
         super().__init__()
+        self.__fn = fn
+        self.__numchannels = numchannels
+        self.__readdata = b""
         self.__initialized = False
 
+    def writedata(self, data, channel=0):
+        if issubclass(data, Iterable):
+            data = ",".join([str(i) for i in data])
+        if not isinstance(data, bytes):
+            data = str(data).encode()
+        self.__fifos[channel].write(data + b"\n")
+
+    def readdata(self, channel=0):
+        self.__readdata += self.__fifos[channel].read()
+        if b"\n" in self.__readdata:
+            data, newline, self.__readdata = self.__readdata.partition(b"\n")
+            text = data.decode()
+            if "," in text:
+                return tuple([float(i) for i in text.split(",")])
+            else:
+                return float(text)
+        else:
+            return None
+        
     def _checkInit(self,quiet=False):
         if quiet:
             return self.__initialized
@@ -32,9 +67,17 @@ class Component:
         self.__initialized = True
 
     def init(self):
-        pass
+        if self.__numchannels < 2:
+            self.__fifos = [FIFOFile(self.__fn)]
+        else:
+            self.__fifos = []
+            for i in range(self.__numchannels):
+                self.__fifos.append(FIFOFile(self.__fn, i))
 
     def cleanup(self):
+        for i in self.__fifos:
+            i.close()
+            os.unlink(i.name)
         self.__initialized = False
 
     def __enter__(self):
@@ -107,7 +150,7 @@ class EventedInput:
             except Exception as e:
                 print_exc()
 
-class LoopedInput:
+class LoopedComponent:
     def __init__(self, *args, **kwargs):        
         super().__init__(*args, **kwargs)
         self.thread = Thread(target=self.runloop)
