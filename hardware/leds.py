@@ -13,7 +13,7 @@ YELLOW = 20
 
 class LEDController(LoopedComponent, GPIOComponent):
     _FN = "led"
-    _mswait = 10
+    _mswait = 100
     
     def __init__(self, red=RED, green=GREEN, blue=BLUE, yellow=YELLOW):
         self.__pins = (red, green, blue, yellow)
@@ -23,4 +23,4 @@ class LEDController(LoopedComponent, GPIOComponent):
         for i in range(4):
             val = self.readdata(i)
             if not (val is None):
-                gpio.output(self.__pins[i], val)
+                gpio.output(self.__pins[i], bool(val))

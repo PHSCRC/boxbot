@@ -20,12 +20,24 @@ def waitms(milliseconds):
 BASE_DIR = os.environ.get("IO_BASE_DIR","/var/run/")
 
 class FIFOFile:
-    def __init__(self, fn, num=None):
-        filename = os.path.join(BASE_DIR, fn + str(num) if num > 1 else fn)
-        os.unlink(filename)
-        os.mkfifo(filename)
-        self.__fd = open(os.open(filename, os.O_RDWR|os.O_NONBLOCK), "wb+", 0)
+    def __init__(self, fn, num=0):
+        self.__filename = os.path.join(BASE_DIR, fn + str(num))
+        try:
+            os.unlink(self.__filename)
+        except FileNotFoundError:
+            pass
+        umask = os.umask(0)
+        os.mkfifo(self.__filename)
+        self.__fd = open(os.open(self.__filename, os.O_RDWR|os.O_NONBLOCK), "wb+", 0)
+        os.umask(umask)
 
+    def close(self):
+        self.__fd.close()
+        try:
+            os.unlink(self.__filename)
+        except FileNotFoundError:
+            pass
+        
     def __getattr__(self, name):
         return getattr(self.__fd, name)
         
@@ -38,7 +50,7 @@ class Component:
         self.__initialized = False
 
     def writedata(self, data, channel=0):
-        if issubclass(data, Iterable):
+        if hasattr(data, "__iter__"):
             data = ",".join([str(i) for i in data])
         if not isinstance(data, bytes):
             data = str(data).encode()
@@ -79,7 +91,6 @@ class Component:
     def cleanup(self):
         for i in self.__fifos:
             i.close()
-            os.unlink(i.name)
         self.__initialized = False
 
     def __enter__(self):
@@ -103,12 +114,18 @@ class GPIOComponent(Component):
             finally:
                 pass
             
-        gpio.setmode(gpio.BOARD)
+        gpio.setmode(gpio.BCM)
 
         for ch in self.__out_pins:
-            gpio.setup(ch, gpio.OUT, initial=gpio.LOW)
+            try:
+                gpio.setup(ch, gpio.OUT, initial=gpio.LOW)
+            except ValueError as err:
+                print("Error setting up pin {}. ({})".format(ch, repr(err)))
         for ch in self.__in_pins:
-            gpio.setup(ch, gpio.IN, initial=gpio.LOW)
+            try:
+                gpio.setup(ch, gpio.IN)
+            except ValueError as err:
+                print("Error setting up pin {}. ({})".format(ch, repr(err)))
 
         self._set_init()
 

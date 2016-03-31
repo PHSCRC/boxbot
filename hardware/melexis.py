@@ -8,7 +8,7 @@ except SystemError as err:
     from component import *
 
 class Melexis(LoopedComponent, I2CComponent):
-    _waitms = 50
+    _mswait = 50
     _FN = "temp"
     
     def init(self, fahrenheit=False):

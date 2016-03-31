@@ -22,8 +22,9 @@ MOVING_AVERAGE_LIMIT = 2
 class ADC4(LoopedComponent, I2CComponent):
     _mswait = 50
 
-    def __init__(self, fn="adc", *args, **kwargs):
-        super().__init__(fn, 4, *args, **kwargs)
+    def __init__(self, addr, fn="adc", **kwargs):
+        o = (addr - 0x48) * 4
+        super().__init__(addr, fn, 4, o, **kwargs)
         self.values = list([None for i in range(4)])
         self.__last_values = list([deque(
             [0 for i in range(MOVING_AVERAGE_LIMIT)])

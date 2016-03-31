@@ -5,12 +5,14 @@ try:
 except SystemError:
     from component import *
 
-PULSE_MAX = 2000
-PULSE_CENTER = 1000
+PULSE_MAX = 415
+PULSE_CENTER = 400
 
 MAX_PULSE = PULSE_MAX - PULSE_CENTER
 
 class MotorDriver(LoopedComponent, I2CComponent):
+    _mswait = 10
+    
     def __init__(self):
         super().__init__(0x40, "motor", 12)
         
@@ -39,4 +41,4 @@ class MotorDriver(LoopedComponent, I2CComponent):
         for i in range(12):
             val = self.readdata(i)
             if not (val is None):
-                self.pwm.setPWM(i, 0, val * MAX_PULSE + PULSE_CENTER)
+                self.pwm.setPWM(i, 0, round(val * MAX_PULSE) + PULSE_CENTER)

@@ -18,7 +18,7 @@ COMPONENTS = (
     InterpolatedDistance.from_files(0x48, *files1, base_path=BASE_PATH),
     InterpolatedDistance.from_files(0x49, *files2, base_path=BASE_PATH),
     LEDController(),
-    Melexis(),
+    #Melexis(),
     MotorDriver(),
     SoundDetect()
 )
@@ -33,6 +33,7 @@ for i in COMPONENTS:
 
 def main():
     for i in COMPONENTS:
-        i.start()
+        if hasattr(i, "start"):
+            i.start()
     while True:
         time.sleep(1)
