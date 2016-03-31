@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from adafruit.ads1x15 import ADS1x15
+from adafruit import ADS1x15
 
 from collections import deque
 
@@ -19,7 +19,7 @@ MILLIVOLTS = 1000
 
 MOVING_AVERAGE_LIMIT = 2
 
-class ADC4(LoopedInput, I2CComponent):
+class ADC4(LoopedComponent, I2CComponent):
     _mswait = 50
 
     def __init__(self, fn="adc", *args, **kwargs):

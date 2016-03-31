@@ -121,7 +121,7 @@ class GPIOComponent(Component):
         return True
 
 class I2CComponent(Component):
-    def __init__(self, addr, *args, **kwargs):
+    def __init__(self, addr=None, *args, **kwargs):
         self._address = addr
         super().__init__(*args, **kwargs)
 
