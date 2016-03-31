@@ -17,13 +17,16 @@ WAITMS = 100
 
 MILLIVOLTS = 1000
 
-class ADC4(EventedInput, LoopedInput, I2CComponent):
+MOVING_AVERAGE_LIMIT = 2
+
+class ADC4(LoopedInput, I2CComponent):
     _mswait = 50
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, fn="adc", *args, **kwargs):
+        super().__init__(fn, 4, *args, **kwargs)
         self.values = list([None for i in range(4)])
-        self.__last_values = list([deque([0 for i in range(2)])
+        self.__last_values = list([deque(
+            [0 for i in range(MOVING_AVERAGE_LIMIT)])
                                    for i in range(4)])
 
     def init(self, autostart=False):
@@ -40,9 +43,10 @@ class ADC4(EventedInput, LoopedInput, I2CComponent):
     def read(self, pin):
         self._checkInit()
         return self.process_reading(
-            self.adc.readADCSingleEnded(pin, GAIN, SINGLE_SPS))
+            self.adc.readADCSingleEnded(pin, GAIN, SINGLE_SPS),
+            pin)
 
-    def process_reading(self, reading):
+    def process_reading(self, reading, channel):
         return reading / MILLIVOLTS
 
     def tick(self):
@@ -59,4 +63,4 @@ class ADC4(EventedInput, LoopedInput, I2CComponent):
             #print(v, val, self.__last_values[i])
             if self.values[i] != val:
                 self.values[i] = val
-                self._handle_pin(i)
+                self.writedata(val, i)

@@ -5,7 +5,10 @@ try:
 except SystemError:
     from component import *
 
-class ColorSensor(I2CComponent):
+class ColorSensor(LoopedComponent, I2CComponent):
+    _mswait = 50
+    _FN = "color"
+    
     def init(self):
         super().init()
         self.tcs = TCS34725(integrationTime=0xEB, gain=0x01)
@@ -14,6 +17,7 @@ class ColorSensor(I2CComponent):
     def readColor(self):
         rgb = tcs.getRawData(True)
         self._lastRGB = rgb
+        return rgb
 
     def getColorTemp(self):
         return tcs.calculateColorTemperature(self._lastRGB)
@@ -24,3 +28,7 @@ class ColorSensor(I2CComponent):
     def cleanup(self):
         self.tcs.disable()
         del self.tcs
+
+    def tick(self):
+        rgbc = self.readColor()
+        self.writedata((rgbc["r"], rgbc["g"], rgbc["b"], rgbc["c"]))

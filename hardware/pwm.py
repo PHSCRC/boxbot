@@ -5,10 +5,18 @@ try:
 except SystemError:
     from component import *
 
-class MotorDriver(I2CComponent):
+PULSE_MAX = 2000
+PULSE_CENTER = 1000
+
+MAX_PULSE = PULSE_MAX - PULSE_CENTER
+
+class MotorDriver(LoopedComponent, I2CComponent):
+    def __init__(self):
+        super().__init__(0x40, "motor", 12)
+        
     def init(self):
         super().init()
-        self.pwm = PWM(self._address) # 0x40
+        self.pwm = PWM(self._address)
         # Note if you'd like more debug output you can instead run:
         #pwm = PWM(0x40, debug=True)
 
@@ -25,5 +33,10 @@ class MotorDriver(I2CComponent):
         print("%d us per bit" % pulseLength)
         pulse *= 1000
         pulse /= pulseLength
-        pwm.setPWM(channel, 0, pulse)
+        self.pwm.setPWM(channel, 0, pulse)
 
+    def tick(self):
+        for i in range(12):
+            val = self.readdata(i)
+            if not (val is None):
+                self.pwm.setPWM(i, 0, val * MAX_PULSE + PULSE_CENTER)

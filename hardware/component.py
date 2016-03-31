@@ -24,16 +24,16 @@ class FIFOFile:
         filename = os.path.join(BASE_DIR, fn + str(num) if num > 1 else fn)
         os.unlink(filename)
         os.mkfifo(filename)
-        self.__fd = open(fn, "wb+", 0)
+        self.__fd = open(os.open(filename, os.O_RDWR|os.O_NONBLOCK), "wb+", 0)
 
     def __getattr__(self, name):
         return getattr(self.__fd, name)
         
 class Component:
-    def __init__(self, fn, numchannels=1):
+    def __init__(self, fn=None, numchannels=1, offset=0):
         super().__init__()
-        self.__fn = fn
-        self.__numchannels = numchannels
+        self.__fn = fn if fn else self._FN
+        self.__channels = range(offset, numchannels + offset)
         self.__readdata = b""
         self.__initialized = False
 
@@ -45,7 +45,9 @@ class Component:
         self.__fifos[channel].write(data + b"\n")
 
     def readdata(self, channel=0):
-        self.__readdata += self.__fifos[channel].read()
+        data = self.__fifos[channel].read()
+        if data:
+            self.__readdata += data
         if b"\n" in self.__readdata:
             data, newline, self.__readdata = self.__readdata.partition(b"\n")
             text = data.decode()
@@ -67,11 +69,11 @@ class Component:
         self.__initialized = True
 
     def init(self):
-        if self.__numchannels < 2:
+        if len(self.__channels) < 2:
             self.__fifos = [FIFOFile(self.__fn)]
         else:
             self.__fifos = []
-            for i in range(self.__numchannels):
+            for i in self.__channels:
                 self.__fifos.append(FIFOFile(self.__fn, i))
 
     def cleanup(self):
@@ -88,8 +90,8 @@ class Component:
         self.cleanup()
 
 class GPIOComponent(Component):
-    def __init__(self,outpins=(),inpins=()):
-        super().__init__()
+    def __init__(self, outpins=(), inpins=(), *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.__out_pins = outpins
         self.__in_pins = inpins
 
@@ -119,9 +121,9 @@ class GPIOComponent(Component):
         return True
 
 class I2CComponent(Component):
-    def __init__(self,addr):
+    def __init__(self, addr, *args, **kwargs):
         self._address = addr
-        super().__init__()
+        super().__init__(*args, **kwargs)
 
 class EventedInput:
     def __init__(self, *args, **kwargs):
@@ -151,6 +153,7 @@ class EventedInput:
                 print_exc()
 
 class LoopedComponent:
+    """Subclasses must implement a tick method and define _mswait"""
     def __init__(self, *args, **kwargs):        
         super().__init__(*args, **kwargs)
         self.thread = Thread(target=self.runloop)
