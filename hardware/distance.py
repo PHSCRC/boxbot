@@ -1,5 +1,5 @@
 
-import os
+import os, math
 
 try:
     from .adc import *
@@ -21,6 +21,7 @@ class InterpolatedDistance(ADC4):
         
     def process_reading(self, reading, pin):
         v = super().process_reading(reading, pin)
+        v = v + 0.6255 * math.log(v) + 0.6249
         index = bisect_right(self.__v[pin], v)
         mm = self.__mm[pin]
         return mm[min(max(index, 0), len(mm) - 1)] / 10
