@@ -6,8 +6,8 @@ except SystemError:
 
 import RPi.GPIO as gpio
 
-RED = 19
-GREEN = 16
+RED = 16
+GREEN = 19
 BLUE = 26
 YELLOW = 20
 

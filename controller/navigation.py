@@ -4,6 +4,8 @@ from .position import *
 from .drive import DriveMotors, TURN_TIME
 from .room import RoomEntryDetection
 
+from collections import defaultdict
+
 L = "L"
 R = "R"
 S = "S"
@@ -22,12 +24,18 @@ class Navigator:
         self.videoled = open("/var/run/led1","wb",0)
         self.readyled = open("/var/run/led2","wb",0)
         self.roomled = open("/var/run/led3","wb",0)
+        self.camcontrol = open("/var/run/camera0","wb",0)
 
-        self.__steps = []
         self.__turning = False
+        self.__turn_handles = defaultdict(bool)
+        
         self.__inroom = False
         self.__toggle_room(True)
-        self.__fourway_right = False
+
+        self.__steps = []
+        self.__going_backwards = False
+        self.__fourway = None
+        self.__orientation = 0 # N, E, S, W
         
         for i in (L_OPENING_END, L_OPENING_START, R_OPENING_START,
                   R_OPENING_END, FRONT_WALL_DETECT, FOUR_WAY_DETECT):
@@ -85,7 +93,12 @@ class Navigator:
                         
     def perform_turn(self, name, state, GO=False):
         if not GO:
-            self.loop.call_later(0.5, self.perform_turn, name, state, True)
+            if self.__turn_handles[name]:
+                if not state:
+                    print("CANCELLING TURN")
+                    self.__turn_handles[name].cancel()
+            else:
+                self.__turn_handles[name] = self.loop.call_later(0.5, self.perform_turn, name, state, True)
             return False
         if (self.__turning and state) or self.__inroom:
             return False
@@ -94,42 +107,48 @@ class Navigator:
                 print("End TURN")
                 self.loop.call_later(TURN_TIME + DELAY_TIME, self.end_turn)
             return False
-        self.__turning = name
-        if name == FOUR_WAY_DETECT:
+        if self.ir.state[FOUR_WAY_DETECT]:
             print("4WAY")
-            if self.__fourway_right:
-                self.decision(L)
+            self.__turning = FOUR_WAY_DETECT
+            """if self.__fourway:
+                if self.__orientation % 2 == self.__fourway[1] % 2:
+                    pass
+                else:
+                    d = L
             else:
-                self.decision(R)
-                self.__fourway_right = True
-        elif name.startswith("R"):
-            if self.ir.state[R_OPENING_START if name == R_OPENING_END
-                             else R_OPENING_END]:
-                print("RTURN")
-                self.decision(R)
-            else:
-                self.__turning = False
-                print("R Only")
+                d = R"""
+            d = L
+            self.__fourway = (len(self.steps), self.__orientation)
+        elif (self.ir.state[L_OPENING_START] and self.ir.state[L_OPENING_END]
+              and self.steps[-1] != R):
+            d = L
+        elif (self.ir.state[R_OPENING_START] and self.ir.state[R_OPENING_END]
+              and self.steps[-1] != L):
+            d = R
+        elif not self.ir.state[FRONT_WALL_DETECT]:
+            d = S
         else:
-            if self.ir.state[L_OPENING_START if name == L_OPENING_END
-                             else L_OPENING_END]:
-                print("LTURN")
-                self.decision(L)
-            else:
-                self.__turning = False
-                print("L Only")
-        
-    def four_way(self, name, state):
-        self.__turning = name
-        self.driver.turnright()
-
+            d = R if self.steps[-1] == L else L
+        self.decision(d)
+            
     def decision(self, d):
+        if self.__going_backwards:
+            if ((self.steps[-1] == R and d = L) or
+                (self.steps[-1] == L and d = R)):
+                self.steps.pop()
+            else:
+                self.__going_backwards = False
+        if not self.__going_backwards:
+            self.steps.append(d)
         if d == R:
+            self.__orientation += 1
             self.driver.turnright()
         elif d == L:
+            self.__orientation -= 1
             self.driver.turnleft()
         else:
             self.driver.forward()
+        self.__orientation %= 4
 
     def __toggle_room(self, manual=False):
         self.__inroom = not self.__inroom
@@ -140,8 +159,12 @@ class Navigator:
             
     def toggle_room(self, state):
         if not state:
+            self.camcontrol.write("{}\n".format(int(self.__inroom)).encode())
             self.loop.call_later(DELAY_TIME, self.__toggle_room)
 
     def turn_around(self):
         self.driver.turnright()
         self.loop.call_later(TURN_TIME, self.driver.turnright)
+        self.__orientation += 2
+        self.__orientation %= 4
+        self.__going_backwards = True
