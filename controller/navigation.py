@@ -1,5 +1,12 @@
 import asyncio
 
+class ControlProtocol:
+    def connection_made(transport):
+        pass
+
+    def connection_lost(exc):
+        pass
+
 class DriveMotorControl:
     def __init__(self, left=0, right=1):
         self.loop = asyncio.get_event_loop()
