@@ -17,7 +17,7 @@ WAITMS = 100
 
 MILLIVOLTS = 1000
 
-MOVING_AVERAGE_LIMIT = 2
+MOVING_AVERAGE_LIMIT = 4
 
 class ADC4(LoopedComponent, I2CComponent):
     _mswait = 50
