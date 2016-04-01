@@ -1,20 +1,33 @@
 import asyncio
 
-PARALLEL_TOLERANCE_MAX = 4
-PARALLEL_TOLERANCE_LIMIT = 12
-HALLWAY_LIMIT = 30
-CENTER_OFFSET_LIMIT = 8
+PARALLEL_TOLERANCE_MAX = 8
+PARALLEL_TOLERANCE_LIMIT = 30
+HALLWAY_LIMIT = 60
+CENTER_OFFSET_LIMIT = 16
+WALL_PROXIMITY_LIMIT = 26
 
 NOT_PARALLEL = "NOT_PARALLEL"
 OFF_CENTER = "OFF_CENTER"
-OPENING_BEGINS = "OPENING_BEGINS"
-OPENING_FULL = "OPENING_FULL"
+L_OPENING_START = "L_OPENING_BEGINS"
+L_OPENING_END = "L_OPENING_FULL"
+R_OPENING_START = "R_OPENING_BEGINS"
+R_OPENING_END = "R_OPENING_FULL"
+FRONT_WALL_DETECT = "FRONT_WALL_PROXIMITY"
+
+OPENINGS = {
+    0: R_OPENING_START,
+    1: R_OPENING_END,
+    2: L_OPENING_END,
+    3: L_OPENING_START
+}
 
 VERTICAL_PAIRS = {
     0: 1,
     1: 0,
     2: 3,
-    3: 2
+    3: 2,
+    4: 5,
+    5: 4
 }
 
 HORIZONTAL_PAIRS = {
@@ -32,20 +45,24 @@ class IRProtocol(asyncio.Protocol):
         self.i = i
         self.up = positioner
         
-    def data_received(data):
-        val = self.data.decode().strip().split()[-1]
-        self.up._received(self.i, float(val))
+    def data_received(self, data):
+        val = data.decode().strip().split()[-1]
+        try:
+            self.up._received(self.i, float(val))
+        except TypeError:
+            pass
         
 class IRPositioning:
     def __init__(self):
         self.loop = asyncio.get_event_loop()
-        self.data = list([0 for i in range(8)])
-        self.loop.run_until_complete(self.connect())
-        self.cbs = defaultdict(lambda: self.echo)
+        self.data = list([None for i in range(8)])
+        self.cbs = defaultdict(lambda self=self: self.echo)
         self.state = defaultdict(bool)
+        self.loop.run_until_complete(self.connect())
 
-        def echo(self, *args):
-            print(self.state, self.data)
+    def echo(self, *args):
+        print("\t".join([str(i[0]) for i in self.state.items() if i[1]]),
+              self.data, sep="\n", end="\n\n")
 
     @asyncio.coroutine
     def connect(self):
@@ -64,18 +81,19 @@ class IRPositioning:
         if self.state[name] == state:
             return False
         self.state[name] = state
-        self.call_soon(self.cbs[name], state, *args)
-    
+        self.loop.call_soon(self.cbs[name], state, *args)
+        
     def _received(self, i, val):
         self.data[i] = val
-        vdiff = abs(self.data[VERTICAL_PAIRS[i]] - val)
-        hdiff = abs(self.data[HORIZONTAL_PAIRS[i]] - val)
         if i < 6:
-            self._set(NOT_PARALLEL,
-                      PARALLEL_TOLERANCE_LIMIT > vdiff >
-                      PARALLEL_TOLERANCE_MAX)
-            self._set(OFF_CENTER, hdiff > CENTER_OFFSET_LIMIT)
-            if i in FORWARD_IR:
-                self._set(OPENING_BEGINS, val > HALLWAY_LIMIT)
-            else:
-                self._set(OPENING_FULL, val > HALLWAY_LIMIT)
+            vdiff = abs(self.data[VERTICAL_PAIRS[i]] - val)
+            if val < PARALLEL_TOLERANCE_LIMIT:
+                self._set(NOT_PARALLEL, PARALLEL_TOLERANCE_MAX < vdiff)
+        if i < 4:
+            hdiff = abs(self.data[HORIZONTAL_PAIRS[i]] - val)
+            self._set(OPENINGS[i], val > HALLWAY_LIMIT)
+            self._set(OFF_CENTER, hdiff > CENTER_OFFSET_LIMIT and
+                      val < HALLWAY_LIMIT)
+        if 3 < i < 6:
+            self._set(FRONT_WALL_DETECT,
+                      sum(self.data[4:6]) / 2 < WALL_PROXIMITY_LIMIT)
