@@ -1,51 +1,66 @@
 import asyncio
 
-class DriveMotorControl:
-    def __init__(self, left=0, right=1):
+from .position import *
+from .drive import DriveMotors
+from .room import RoomEntryDetection
+
+class Navigator:
+    def __init__(self):
         self.loop = asyncio.get_event_loop()
-        self._left = open("/var/run/motor{}".format(left),"w")
-        self._right = open("/var/run/motor{}".format(right),"w")
-        self.__left = 0
-        self.__right = 0
-        self.loop.run_until_complete(self.connect())
+        self.ir = IRPositioning()
+        self.driver = DriveMotors()
+        self.room = RoomEntryDetection()
 
-    @asyncio.coroutine
-    def connect(self):
-        self._left, lpr = yield from self.loop.connect_write_pipe(asyncio.Protocol, self._left)
-        self._right, rpr = yield from self.loop.connect_write_pipe(asyncio.Protocol, self._right)
-
-    @property
-    def left(self):
-        return self.__left
-
-    @left.setter
-    def left(self, val):
-        self.__left = val
-        self._left.write("{}\n".format(val).encode())
-    
-    @property
-    def right(self):
-        return self.__right
-
-    @right.setter
-    def right(self, val):
-        self.__right = val
-        self._right.write("{}\n".format(val).encode())
+        self.__steps = []
+        self.__turning = False
+        self.__inroom = True
+        self.__fourway_right = False
         
-    def stop(self):
-        self.left = 0
-        self.right = 0
-        
-    def forward(self):
-        self.left = 1
-        self.right = -1
+        for i in (NOT_PARALLEL, OFF_CENTER):
+            self.ir.register(i, self.course_correct)
+        for i in (L_OPENING_END, R_OPENING_END, FRONT_WALL_DETECT):
+            self.ir.register(i, self.perform_turn)
+        self.ir.register(FOUR_WAY_DETECT, self.four_way)
+        self.room.register(self.toggle_room)
 
-    def turnright(self):
-        self.right = 1
-        self.left = 1
-        return self.loop.call_later(1, self.stop)
+        self.driver.forward()
 
-    def turnleft(self):
-        self.right = -1
-        self.left = -1
-        return self.loop.call_later(1, self.stop)
+    def course_correct(self, name, state):
+        if self.__turning or self.__inroom:
+            return False
+        if not (self.ir.state[NOT_PARALLEL] or
+                self.ir.state[OFF_CENTER]):
+            self.driver.forward()
+        elif state:
+            if name == NOT_PARALLEL:
+                direction = [0, 0] # left, right
+                direction[int(self.ir.data[0] < self.ir.data[1])] += 1
+                direction[int(self.ir.data[2] < self.ir.data[3])] += 1
+                direction[int(self.ir.data[5] < self.ir.data[4])] += 1
+                if direction[0] > direction[1]:
+                    self.driver.slightleft(False)
+                else:
+                    self.driver.slightright(False)
+            else:
+                if (self.ir.state[L_OPENING_START] or
+                    self.ir.state[R_OPENING_START]):
+                    if self.ir.data[1] > self.ir.data[2]:
+                        self.driver.slightright(False)
+                    else:
+                        self.driver.slightleft(False)
+                else:
+                    if self.ir.data[0] > self.ir.data[3]:
+                        self.driver.slightright(False)
+                    else:
+                        self.driver.slightleft(False)
+
+    def perform_turn(self, name, state):
+        self.__turning = True
+        self.driver.stop()
+
+    def four_way(self, name, state):
+        self.__turning = True
+        self.driver.stop()
+
+    def toggle_room(self, state):
+        self.__inroom = not self.__inroom

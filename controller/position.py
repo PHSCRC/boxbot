@@ -6,6 +6,8 @@ HALLWAY_LIMIT = 60
 CENTER_OFFSET_LIMIT = 12
 WALL_PROXIMITY_LIMIT = 26
 
+STEADY_WAIT = 0.1 # seconds
+
 NOT_PARALLEL = "NOT_PARALLEL"
 OFF_CENTER = "OFF_CENTER"
 L_OPENING_START = "L_OPENING_BEGINS"
@@ -13,6 +15,7 @@ L_OPENING_END = "L_OPENING_FULL"
 R_OPENING_START = "R_OPENING_BEGINS"
 R_OPENING_END = "R_OPENING_FULL"
 FRONT_WALL_DETECT = "FRONT_WALL_PROXIMITY"
+FOUR_WAY_DETECT = "4WAY_DETECT"
 
 OPENINGS = {
     0: R_OPENING_START,
@@ -57,6 +60,7 @@ class IRPositioning:
         self.loop = asyncio.get_event_loop()
         self.data = list([None for i in range(8)])
         self.cbs = defaultdict(lambda self=self: self.echo)
+        self.__handles = defaultdict(bool)
         self.state = defaultdict(bool)
         self.loop.run_until_complete(self.connect())
 
@@ -71,7 +75,7 @@ class IRPositioning:
             yield from self.loop.connect_read_pipe(
                 lambda i=i, up=self: IRProtocol(i, up), fd)
 
-    def register_cb(self, name, func):
+    def register(self, name, func):
         self.cbs[name] = func
 
     def get(self, i):
@@ -81,7 +85,9 @@ class IRPositioning:
         if self.state[name] == state:
             return False
         self.state[name] = state
-        self.loop.call_soon(self.cbs[name], state, *args)
+        if self.__handles[name]: self.__handles[name].cancel()
+        self.__handles[name] = self.loop.call_later(
+            STEADY_WAIT, self.cbs[name], name, state, *args)
         
     def _received(self, i, val):
         self.data[i] = val
@@ -97,3 +103,9 @@ class IRPositioning:
         if 3 < i < 6:
             self._set(FRONT_WALL_DETECT,
                       sum(self.data[4:6]) / 2 < WALL_PROXIMITY_LIMIT)
+        self._set(FOUR_WAY_DETECT,
+                  all([self.state[i] for i in OPENINGS.values()]))
+
+__all__ = ["IRPositioning", "NOT_PARALLEL", "OFF_CENTER", "FRONT_WALL_DETECT",
+           "L_OPENING_START", "L_OPENING_END", "R_OPENING_START",
+           "R_OPENING_END", "FOUR_WAY_DETECT"]
