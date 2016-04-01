@@ -21,8 +21,9 @@ class InterpolatedDistance(ADC4):
         
     def process_reading(self, reading, pin):
         v = super().process_reading(reading, pin)
-        index = bisect_left(self.__v[pin], v)
-        return self.__mm[pin][index] / 10
+        index = bisect_right(self.__v[pin], v)
+        mm = self.__mm[pin]
+        return mm[min(max(index, 0), len(mm) - 1)] / 10
 
     @classmethod
     def from_files(cls, addr, *args, base_path=None, **kwargs):
