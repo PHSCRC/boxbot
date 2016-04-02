@@ -18,7 +18,7 @@ COMPONENTS = (
     InterpolatedDistance.from_files(0x48, *files1, base_path=BASE_PATH),
     InterpolatedDistance.from_files(0x49, *files2, base_path=BASE_PATH),
     LEDController(),
-    #Melexis(),
+    Melexis(),
     MotorDriver(),
     SoundDetect()
 )
