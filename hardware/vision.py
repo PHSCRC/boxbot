@@ -411,14 +411,14 @@ class Tester(object):
         else:
             coords = []
             for i in responses:
-                coords.append(i[1][1])
+                coords.append(i[1][0][1])
             if Tester.__check_shift(coords, candlepics[0], deviation_allowed):
                 if responses[0][0] == 1:
-                    return Tester.HIGHLY_LIKELY, Tester.__turn_amount_horiz(
-                        responses[0][1][0])
+                    return Tester.HIGHLY_LIKELY, (Tester.__turn_amount_horiz(
+                        responses[0][1][0][1], pic))
                 else:
-                    return Tester.POSSIBLY, Tester.__turn_amount_horiz(
-                        responses[0][1][0])
+                    return Tester.POSSIBLY, (Tester.__turn_amount_horiz(
+                        responses[0][1][0][1], pic))
             else:
                 if responses[0][0] == 1:
                     return Tester.TOO_MUCH_DEVIATION, 0.0

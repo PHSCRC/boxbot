@@ -5,7 +5,7 @@ try:
 except SystemError:
     from component import *
 
-PULSE_MAX = 415
+PULSE_MAX = 550
 PULSE_CENTER = 400
 
 MAX_PULSE = PULSE_MAX - PULSE_CENTER

@@ -1,21 +1,21 @@
 import asyncio
 
-DEBUG = False
-
-PARALLEL_TOLERANCE_MAX = 6
-PARALLEL_TOLERANCE_LIMIT = 20
-HALLWAY_LIMIT = 40
+PARALLEL_TOLERANCE_MAX = 4
+PARALLEL_TOLERANCE_LIMIT = 30
+HALLWAY_LIMIT = 28
 CENTER_OFFSET_LIMIT = 6
-WALL_PROXIMITY_LIMIT = 26
+WALL_PROXIMITY_LIMIT = 30
 
 STEADY_WAIT = 0.05 # seconds
 
 NOT_PARALLEL = "NOT_PARALLEL"
 OFF_CENTER = "OFF_CENTER"
 L_OPENING_START = "L_OPENING_BEGINS"
-L_OPENING_END = "L_OPENING_FULL"
+L_OPENING_END = "L_OPENING_END"
 R_OPENING_START = "R_OPENING_BEGINS"
-R_OPENING_END = "R_OPENING_FULL"
+R_OPENING_END = "R_OPENING_END"
+L_OPENING = "L_OPENING_BOTH"
+R_OPENING = "R_OPENING_BOTH"
 FRONT_WALL_DETECT = "FRONT_WALL_PROXIMITY"
 FOUR_WAY_DETECT = "4WAY_DETECT"
 
@@ -58,7 +58,8 @@ class IRProtocol(asyncio.Protocol):
             pass
         
 class IRPositioning:
-    def __init__(self):
+    def __init__(self, debug=False):
+        self._debug = debug
         self.loop = asyncio.get_event_loop()
         self.data = list([None for i in range(8)])
         self.cbs = defaultdict(lambda self=self: self.echo)
@@ -76,7 +77,7 @@ class IRPositioning:
         self.__blocked = val
         
     def echo(self, *args):
-        if DEBUG:
+        if self._debug:
             print("\t".join([str(i[0]) for i in self.state.items() if i[1]]),
                   self.data, sep="\n", end="\n\n")
 
@@ -112,16 +113,21 @@ class IRPositioning:
         if i < 4:
             hdiff = abs(self.data[HORIZONTAL_PAIRS[i]] - val)
             self._set(OPENINGS[i], val > HALLWAY_LIMIT)
+            self._set(R_OPENING, (self.state[OPENINGS[0]] and
+                                  self.state[OPENINGS[1]]))
+            self._set(L_OPENING, (self.state[OPENINGS[2]] and
+                                  self.state[OPENINGS[3]]))
             self._set(OFF_CENTER, hdiff > CENTER_OFFSET_LIMIT and
                       (val < HALLWAY_LIMIT and
                        self.data[HORIZONTAL_PAIRS[i]] < HALLWAY_LIMIT))
         front_avg = sum(self.data[4:6]) / 2
         if 3 < i < 6:
-            self._set(FRONT_WALL_DETECT, front_avg < WALL_PROXIMITY_LIMIT)
+            self._set(FRONT_WALL_DETECT, self.data[4] < WALL_PROXIMITY_LIMIT
+                      or self.data[5] < WALL_PROXIMITY_LIMIT)
         self._set(FOUR_WAY_DETECT,
                   all([self.state[i] for i in OPENINGS.values()]) and
                   front_avg > HALLWAY_LIMIT)
 
 __all__ = ["IRPositioning", "NOT_PARALLEL", "OFF_CENTER", "FRONT_WALL_DETECT",
            "L_OPENING_START", "L_OPENING_END", "R_OPENING_START",
-           "R_OPENING_END", "FOUR_WAY_DETECT"]
+           "R_OPENING_END", "FOUR_WAY_DETECT", "L_OPENING", "R_OPENING"]

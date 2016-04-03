@@ -1,10 +1,11 @@
 
 import atexit, time, sys, os
 
-from .visionpipe import Vision
+from .visionpipe import *
 
 COMPONENTS = (
     Vision(),
+    VisionController()
 )
 
 @atexit.register
@@ -21,3 +22,5 @@ def main():
             i.start()
     while True:
         time.sleep(1)
+
+main()

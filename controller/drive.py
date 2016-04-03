@@ -1,7 +1,7 @@
 import asyncio
 
 SLIGHT_TIME = 0.1
-TURN_TIME = 1.1
+TURN_TIME = 0.75
 
 class DriveMotors:
     def __init__(self, left=0, right=1):
@@ -25,7 +25,8 @@ class DriveMotors:
     @left.setter
     def left(self, val):
         self.cancel()
-        self.__left = val
+        val = val * 0.999
+        self.__left = float(val)
         self._left.write("{}\n".format(val).encode())
     
     @property
@@ -64,7 +65,7 @@ class DriveMotors:
 
     def slightright(self, t=SLIGHT_TIME):
         print("Slight right")
-        self.right = -0.7
+        self.right = -0.09
         self.left = 1
         if t:
             self.__handle = self.loop.call_later(t, self.forward)
@@ -72,7 +73,7 @@ class DriveMotors:
     def slightleft(self, t=SLIGHT_TIME):
         print("Slight left")
         self.right = -1
-        self.left = 0.7
+        self.left = 0.09
         if t:
             self.__handle = self.loop.call_later(t, self.forward)
 
