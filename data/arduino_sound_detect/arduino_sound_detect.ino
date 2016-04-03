@@ -28,7 +28,7 @@ byte wrong = 0;
 
 void setup(){
   
-  //Serial.begin(9600);
+  Serial.begin(9600);
   
   pinMode(13,OUTPUT);//clipping indicator pin
   pinMode(2,OUTPUT);//led indicator pin
@@ -81,12 +81,12 @@ void loop(){
   /*Serial.print(frequency);
   Serial.println(" hz");*/
 
-  if (3300 < frequency && 4300 > frequency) {
+  if (3400 < frequency && 4200 > frequency) {
     correct++;
   } else {
     wrong++;
   }
-  if (wrong + correct > 10) {
+  if (wrong + correct > 20) {
     //Serial.print(wrong);
     //Serial.print(" ");
     //Serial.println(correct);
