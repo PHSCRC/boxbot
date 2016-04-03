@@ -38,7 +38,7 @@ class Vision(LoopedComponent, Component):
         super().cleanup()
 
     def __detect(self):
-        result = self._tester.test_candle(quantity=1)
+        result = self._tester.test_candle(quantity=2, deviation_allowed=0.3)
         self._tester.clear_pics()
         return result
 

@@ -20,7 +20,7 @@ MILLIVOLTS = 1000
 MOVING_AVERAGE_LIMIT = 4
 
 class ADC4(LoopedComponent, I2CComponent):
-    _mswait = 50
+    _mswait = 10
 
     def __init__(self, addr, fn="adc", **kwargs):
         o = (addr - 0x48) * 4

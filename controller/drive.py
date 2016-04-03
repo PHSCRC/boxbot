@@ -1,4 +1,4 @@
-import asyncio
+import asyncio, traceback
 
 SLIGHT_TIME = 0.1
 TURN_TIME = 0.75
@@ -26,7 +26,9 @@ class DriveMotors:
     def left(self, val):
         self.cancel()
         val = val * 0.999
-        self.__left = float(val)
+        self.__left = val
+        #if val == 0:
+            #traceback.print_stack()
         self._left.write("{}\n".format(val).encode())
     
     @property
@@ -50,6 +52,12 @@ class DriveMotors:
     def forward(self):
         self.right = -1
         self.left = 1
+        
+    def backward(self, t=None):
+        self.right = 1
+        self.left = -1
+        if t:
+            self.__handle = self.loop.call_later(t, self.forward)
 
     def turnright(self, t=TURN_TIME):
         self.right = 1

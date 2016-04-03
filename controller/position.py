@@ -1,10 +1,13 @@
-import asyncio
+import asyncio, sys, os
+
+devnull = open(os.devnull,"w")
 
 PARALLEL_TOLERANCE_MAX = 4
 PARALLEL_TOLERANCE_LIMIT = 30
-HALLWAY_LIMIT = 28
-CENTER_OFFSET_LIMIT = 6
-WALL_PROXIMITY_LIMIT = 30
+HALLWAY_LIMIT = 32
+CENTER_OFFSET_LIMIT = 4
+WALL_PROXIMITY_LIMIT = 20
+FRONT_STUCK_LIMIT = 8
 
 STEADY_WAIT = 0.05 # seconds
 
@@ -18,6 +21,7 @@ L_OPENING = "L_OPENING_BOTH"
 R_OPENING = "R_OPENING_BOTH"
 FRONT_WALL_DETECT = "FRONT_WALL_PROXIMITY"
 FOUR_WAY_DETECT = "4WAY_DETECT"
+FRONT_STUCK = "STUCK_FRONT"
 
 OPENINGS = {
     0: R_OPENING_START,
@@ -95,6 +99,8 @@ class IRPositioning:
         return self.data[i]
 
     def _set(self, name, state, *args):
+        if name == R_OPENING or name == L_OPENING:
+            print(name, state, file=devnull)
         if self.state[name] == state:
             return False
         if self.__blocked:
@@ -113,10 +119,14 @@ class IRPositioning:
         if i < 4:
             hdiff = abs(self.data[HORIZONTAL_PAIRS[i]] - val)
             self._set(OPENINGS[i], val > HALLWAY_LIMIT)
-            self._set(R_OPENING, (self.state[OPENINGS[0]] and
-                                  self.state[OPENINGS[1]]))
-            self._set(L_OPENING, (self.state[OPENINGS[2]] and
-                                  self.state[OPENINGS[3]]))
+            #self._set(R_OPENING, (self.state[OPENINGS[0]] and
+             #                     self.state[OPENINGS[1]]))
+            #self._set(L_OPENING, (self.state[OPENINGS[2]] and
+             #                     self.state[OPENINGS[3]]))
+            self._set(R_OPENING, (self.data[0] +
+                                  self.data[1]) / 2 > HALLWAY_LIMIT)
+            self._set(L_OPENING, (self.data[2] +
+                                  self.data[3]) / 2 > HALLWAY_LIMIT)
             self._set(OFF_CENTER, hdiff > CENTER_OFFSET_LIMIT and
                       (val < HALLWAY_LIMIT and
                        self.data[HORIZONTAL_PAIRS[i]] < HALLWAY_LIMIT))
@@ -124,10 +134,13 @@ class IRPositioning:
         if 3 < i < 6:
             self._set(FRONT_WALL_DETECT, self.data[4] < WALL_PROXIMITY_LIMIT
                       or self.data[5] < WALL_PROXIMITY_LIMIT)
+            self._set(FRONT_STUCK, self.data[4] < FRONT_STUCK_LIMIT
+                      or self.data[5] < FRONT_STUCK_LIMIT)
         self._set(FOUR_WAY_DETECT,
                   all([self.state[i] for i in OPENINGS.values()]) and
                   front_avg > HALLWAY_LIMIT)
 
 __all__ = ["IRPositioning", "NOT_PARALLEL", "OFF_CENTER", "FRONT_WALL_DETECT",
            "L_OPENING_START", "L_OPENING_END", "R_OPENING_START",
-           "R_OPENING_END", "FOUR_WAY_DETECT", "L_OPENING", "R_OPENING"]
+           "R_OPENING_END", "FOUR_WAY_DETECT", "L_OPENING", "R_OPENING",
+           "VERTICAL_PAIRS", "HORIZONTAL_PAIRS", "FRONT_STUCK"]

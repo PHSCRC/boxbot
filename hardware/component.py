@@ -46,7 +46,7 @@ class Component:
         super().__init__()
         self.__fn = fn if fn else self._FN
         self.__channels = range(offset, numchannels + offset)
-        self.__readdata = b""
+        self.__readdata = defaultdict(bytes)
         self.__initialized = False
 
     def writedata(self, data, channel=0):
@@ -59,9 +59,9 @@ class Component:
     def readdata(self, channel=0):
         data = self.__fifos[channel].read()
         if data:
-            self.__readdata += data
-        if b"\n" in self.__readdata:
-            data, newline, self.__readdata = self.__readdata.partition(b"\n")
+            self.__readdata[channel] += data
+        if b"\n" in self.__readdata[channel]:
+            data, newline, self.__readdata[channel] = self.__readdata[channel].partition(b"\n")
             text = data.decode()
             if "," in text:
                 return tuple([float(i) for i in text.split(",")])

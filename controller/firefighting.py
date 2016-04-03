@@ -25,7 +25,7 @@ class Extinguisher:
 
     def _reverse(self):
         self.speed = 1
-        self.loop.call_later(0.04, self._stop)
+        self.loop.call_later(0.02, self._stop)
         
     def go(self):
         self.speed = -2
