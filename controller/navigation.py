@@ -89,6 +89,9 @@ class Navigator:
 
     def give_up(self):
         print("GIVING UP")
+        self.__orientation += 2
+        self.__orientation %= 4
+        self.__going_backwards = True
         self.driver.forward()
         
     def vision(self, state, deg):
@@ -204,6 +207,7 @@ class Navigator:
                 print("End TURN")
                 self.loop.call_later(TURN_TIME + DELAY_TIME, self.end_turn)
             return False
+        fourway = False
         if self.ir.state[FOUR_WAY_DETECT]:
             print("4WAY")
             self.__turning = FOUR_WAY_DETECT
@@ -215,13 +219,22 @@ class Navigator:
             else:
                 d = R"""
             d = L
-            self.__fourway = (len(self.__steps), self.__orientation)
-        elif (self.ir.state[L_OPENING] and not (self.__going_backwards and
-                                                self.__steps[-1] == R)):
+            if self.__fourway and (
+                    (self.orientation + 1) % 4 == self.__fourway[1]):
+                while len(self.__steps) > self.__fourway[0]:
+                    self.__steps.pop()
+                self.__going_backwards = True
+                fourway = True
+            if not self.__fourway:
+                self.__fourway = (len(self.__steps), self.__orientation)
+        elif (self.ir.state[L_OPENING]
+              and not ((self.__going_backwards and self.__steps[-1] == R)
+                       or (self.__steps[-1] == self.__steps[-2] == L))):
             self.__turning = name
             d = L
-        elif (self.ir.state[R_OPENING] and not (self.__going_backwards and
-                                                self.__steps[-1] == L)):
+        elif (self.ir.state[R_OPENING]
+              and not ((self.__going_backwards and self.__steps[-1] == L)
+                       or (self.__steps[-1] == self.__steps[-2] == R))):
             self.__turning = name
             d = R
         elif not self.ir.state[FRONT_WALL_DETECT]:
@@ -237,14 +250,16 @@ class Navigator:
                 self.__turning = "AROUND"
                 self.turn_around()
                 self.loop.call_later(TURN_TIME * 2, self.end_turn)
-        self.decision(d)
+        self.decision(d, fourway)
             
-    def decision(self, d):
+    def decision(self, d, fourway=False):
         print(d)
         if self.__going_backwards:
             if ((self.__steps[-1] == R and d == L) or
                 (self.__steps[-1] == L and d == R)):
                 self.__steps.pop()
+            elif fourway:
+                pass
             else:
                 self.__going_backwards = False
         if not self.__going_backwards:
