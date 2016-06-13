@@ -7,6 +7,7 @@ from .leds import LEDController
 from .melexis import Melexis
 from .pwm import MotorDriver
 from .sound import SoundDetect
+from .imu import Gyroscope, Accelerometer, Euler
 
 BASE_PATH = "data/irdata/"
 
@@ -20,7 +21,10 @@ COMPONENTS = (
     LEDController(),
     #Melexis(),
     MotorDriver(),
-    SoundDetect()
+    SoundDetect(),
+    Gyroscope(),
+    Accelerometer(),
+    Euler(),
 )
 
 @atexit.register
