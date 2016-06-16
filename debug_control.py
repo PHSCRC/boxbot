@@ -39,7 +39,7 @@ def display_iterable(scr, iterable, start, x=10, name=None):
     for i in iterable:
         curses.setsyx(start, x)
         scr.clrtoeol()
-        scr.addstr(start, x, str(i))
+        scr.addstr(start, x, str(round(i,2)))
         start += 1
     curses.setsyx(sy, sx)
     scr.refresh()
@@ -76,6 +76,7 @@ def main():
         key = scr.getch()
 
         if key == Q:
+            dm.stop()
             break
         
         {
