@@ -9,7 +9,7 @@ class IMUProtocol(asyncio.Protocol):
 
     def data_received(self, data):
         text = data.decode().strip().split()[-1]
-        rgbc = tuple([int(i) for i in text.split(",")])
+        rgbc = tuple([float(i) for i in text.split(",")])
         self.up._received(rgbc)
 
 class IMU:
@@ -28,7 +28,7 @@ class IMU:
     def _received(self, euler):
         self.data = euler
         self.heading = euler[0]
-        if not initial:
+        if not self.initial:
             self.initial = euler
 
     def mark(self):
@@ -39,7 +39,9 @@ class IMU:
         return self.heading - self.initial[0]
     @property
     def from_mark(self):
-        return self.heading - self._mark
+        a = self.heading - self._mark
+        print(round(a))
+        return a
 
 class DriveMotors:
     def __init__(self, left=0, right=1):
@@ -51,7 +53,17 @@ class DriveMotors:
         self.imu = IMU()
         self.loop.run_until_complete(self.connect())
         self.__handle = None
+        self.__angle = 0
+        self.loop.call_soon(self._check_orientation)
 
+    def _check_orientation(self):
+        if self.__angle and ((self.__angle > 0 and
+                              self.imu.from_mark > self.__angle) or
+                             (self.__angle < 0 and
+                              self.imu.from_mark < self.__angle)):
+            self.forward()
+        self.loop.call_soon(self._check_orientation)
+        
     @asyncio.coroutine
     def connect(self):
         self._left, lpr = yield from self.loop.connect_write_pipe(asyncio.Protocol, self._left)
@@ -84,10 +96,11 @@ class DriveMotors:
     def cancel(self):
         if self.__handle: self.__handle.cancel()
 
-    def __set(self, right, left, t=None):
+    def __set(self, right, left, angle=0, t=None):
         self.imu.mark()
         self.right = right
         self.left = left
+        self.__angle = angle
         if t:
             self.__handle = self.loop.call_later(t, self.forward)
         
@@ -98,19 +111,19 @@ class DriveMotors:
         self.__set(-1, 1)
         
     def backward(self, t=None):
-        self.__set(1, -1, t)
+        self.__set(1, -1, 0, t)
 
     def turnright(self, t=TURN_TIME):
-        self.__set(1, 1, t)
+        self.__set(1, 1, 90)
 
     def turnleft(self, t=TURN_TIME):
-        self.__set(-1, -1, t)
+        self.__set(-1, -1, -90)
 
     def slightright(self, t=SLIGHT_TIME):
         print("Slight right")
-        self.__set(-0.09, 1, t)
+        self.__set(-0.09, 1, 0, t)
 
     def slightleft(self, t=SLIGHT_TIME):
         print("Slight left")
-        self.__set(-1, 0.09, t)
+        self.__set(-1, 0.09, 0, t)
 
