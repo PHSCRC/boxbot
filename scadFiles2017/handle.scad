@@ -25,7 +25,7 @@ module handletop(){
                 cube([215, 60, 10],center = true);
             }
             translate([85,0,25]){
-                #cube([10,60,40],center = true);
+                cube([10,60,40],center = true);
             }
             translate([-120,0,25]){
                 cube([10,60,60],center = true);

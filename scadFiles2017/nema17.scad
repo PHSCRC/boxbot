@@ -1,7 +1,19 @@
 $fn = 50;
+
+
+
+module wheel(){
+    translate([45, 0,0]){
+        rotate([0,90,0]){
+            cylinder(8, d=100,center = true);
+            
+         }
+     }
+    
+}
+
 module nema17(){
-
-
+        wheel();
         cube([39, 42.3, 42.3], center = true);
         translate([19.5, 0, 0]){
 
